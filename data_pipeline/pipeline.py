@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import os
 
 
 # ============================================================
@@ -15,6 +16,10 @@ GBP_TO_INR = 105.50
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "zepto_books.db"
+
+csv_path=BASE_DIR/"Output"
+if not os.path.exists(csv_path):
+    os.makedirs(csv_path)
 
 MAX_PAGES = 5
 
@@ -714,7 +719,7 @@ def main():
         for query_name, result in results.items():
 
             output_path = (
-                BASE_DIR /
+                csv_path /
                 f"{query_name}_output.csv"
             )
 
