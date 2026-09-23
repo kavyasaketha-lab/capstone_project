@@ -1,7 +1,5 @@
 import sqlite3
-
 from pathlib import Path
-
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
@@ -25,7 +23,8 @@ RATING_MAP = {
     "Two": 2,
     "Three": 3,
     "Four": 4,
-    "Five": 5
+    "Five": 5,
+    "six":6
 }
 
 # ============================================================
