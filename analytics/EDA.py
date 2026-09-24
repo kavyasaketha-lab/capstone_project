@@ -1,6 +1,8 @@
 #Imports#
 import pandas as pd
 import numpy as np
+import os
+from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
 from IPython.display import display
@@ -9,10 +11,6 @@ from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings("ignore")
 
-pd.set_option("display.max_columns", None)
-pd.set_option("display.width", 120)
-
-sns.set_theme(style="whitegrid")
 sns.load_dataset("titanic")
 
 #Load Titanic exactly once
@@ -23,8 +21,8 @@ print("Shape:", df.shape)
 
 df.head()
 # Immediately save CSV
-df.to_csv("titanic.csv", index=False)
-
+csv_path=Path(__file__).resolve().parent
+df.to_csv(f'{csv_path}\\titanic.csv',index=False)
 print("titanic.csv saved successfully.")
 # Profile the dataset
 print("========== DATASET INFO ==========")
@@ -34,7 +32,7 @@ print("\n========== DATASET SHAPE ==========")
 print(df.shape)
 
 print("\n========== DESCRIPTIVE STATISTICS ==========")
-display(df.describe(include="all"))
+print(df.describe())
 
 # Missing-value percentages
 missing_count = df.isnull().sum()
@@ -47,16 +45,16 @@ missing_report = pd.DataFrame({
     "Missing Count": missing_count,
     "Missing Percentage": missing_percentage
 })
-
+# print(missing_report)
 missing_report = missing_report[
     missing_report["Missing Count"] > 0
 ]
 
 print("Missing-value report:")
-display(missing_report)
+print(missing_report)
 #Appplying Missing-value strategy
 print("Missing-value strategy")
-print("-" * 60)
+print("__" * 60)
 
 for column in missing_report.index:
     pct = missing_percentage[column]
@@ -73,7 +71,7 @@ for column in missing_report.index:
 # Clean the dataset
 df_clean = df.copy()
 
-# Drop high-missingness column
+# Drop deck column because of high-missingness 
 if "deck" in df_clean.columns:
     df_clean.drop(columns=["deck"], inplace=True)
 
@@ -84,44 +82,46 @@ df_clean["age"] = df_clean["age"].fillna(df_clean["age"].median())
 df_clean["embarked"] = df_clean["embarked"].fillna(
     df_clean["embarked"].mode()[0]
 )
-
-# Handle embark_town consistently
-if "embark_town" in df_clean.columns:
-    df_clean["embark_town"] = df_clean["embark_town"].fillna(
-        df_clean["embark_town"].mode()[0]
-    )
-
+indexes=df_clean[df_clean["embark_town"].isna()]
+# print(df_clean.shape)
+for i in indexes.index:
+    df_clean.drop(i,inplace=True)
+    print(f"{i} th row deleted")
+# print(df_clean.shape)
 print("Remaining missing values:")
-display(df_clean.isnull().sum())
+print(df_clean.isnull().sum())
 # Save the final cleaned CSV
-df_clean.to_csv("titanic.csv", index=False)
-
+df_clean.to_csv(f'{csv_path}\\titanic.csv',index=False)
 print("Final cleaned titanic.csv saved.")
 print("Shape:", df_clean.shape)
-pd.read_csv("titanic.csv")
+pd.read_csv(f'{csv_path}\\titanic.csv')
+
+BASE_DIR = Path(__file__).resolve().parent
+
+charts_path=BASE_DIR/"PlotCharts"
+if not os.path.exists(charts_path):
+    os.makedirs(charts_path)
+
 # Age and Fare analysis: Histograms
-
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
 sns.histplot(df_clean["age"], kde=True, ax=axes[0])
 axes[0].set_title("Age Distribution")
-
 sns.histplot(df_clean["fare"], kde=True, ax=axes[1])
 axes[1].set_title("Fare Distribution")
-
 plt.tight_layout()
-plt.show()
+filename="agefareHistograms.png"
+plt.savefig(charts_path/filename)
 
+plt.show()
 # Box plots
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
 sns.boxplot(y=df_clean["age"], ax=axes[0])
 axes[0].set_title("Age Box Plot")
-
 sns.boxplot(y=df_clean["fare"], ax=axes[1])
 axes[1].set_title("Fare Box Plot")
-
 plt.tight_layout()
+filename="agefareboxplots.png"
+plt.savefig(charts_path/filename)
 plt.show()
 # IQR outliers
 def iqr_outlier_count(series):
@@ -133,10 +133,10 @@ def iqr_outlier_count(series):
     lower_bound = q1 - 1.5 * iqr
     upper_bound = q3 + 1.5 * iqr
     
-    outliers = series[
-        (series < lower_bound) |
-        (series > upper_bound)
-    ]
+    outlier_count = np.sum(
+        (series < lower_bound) | (series > upper_bound)
+    )
+
     
     return {
         "Q1": q1,
@@ -144,7 +144,7 @@ def iqr_outlier_count(series):
         "IQR": iqr,
         "Lower Bound": lower_bound,
         "Upper Bound": upper_bound,
-        "Outlier Count": len(outliers)
+        "Outlier Count": outlier_count
     }
 
 
@@ -209,7 +209,8 @@ sns.barplot(
 plt.title("Survival Rate by Sex and Passenger Class")
 plt.ylabel("Survival Rate")
 plt.xlabel("Passenger Class")
-
+filename="Survivalclassbarplot.png"
+plt.savefig(charts_path/filename)
 plt.show()
 
 # Age vs Fare
@@ -226,8 +227,78 @@ sns.scatterplot(
 plt.title("Age, Fare and Survival")
 plt.xlabel("Age")
 plt.ylabel("Fare")
-
+filename="Agefarescatter.png"
+plt.savefig(charts_path/filename)
 plt.show()
+
+
+# ---------------------------------------------------------
+# Correlation matrix
+# ---------------------------------------------------------
+
+correlation_columns = [
+    "survived",
+    "pclass",
+    "age",
+    "sibsp",
+    "parch",
+    "fare"
+]
+
+# Create correlation matrix using cleaned data
+corr_matrix = df_clean[correlation_columns].corr()
+
+print("\nCorrelation Matrix:")
+print(corr_matrix)
+
+
+# ---------------------------------------------------------
+# Correlation heatmap
+# ---------------------------------------------------------
+
+plt.figure(figsize=(9, 7))
+
+sns.heatmap(
+    corr_matrix,
+    annot=True,
+    cmap="coolwarm",
+    fmt=".2f",
+    linewidths=0.5
+)
+
+plt.title("Correlation Matrix of Titanic Numeric Features")
+plt.tight_layout()
+filename="correlationheatmap.png"
+plt.savefig(charts_path/filename)
+plt.show()
+
+
+# ---------------------------------------------------------
+# Find the two strongest correlations
+# ---------------------------------------------------------
+
+# Keep only the upper triangle
+upper_triangle = corr_matrix.where(
+    np.triu(
+        np.ones(corr_matrix.shape),
+        k=1
+    ).astype(bool)
+)
+
+# Convert the matrix into correlation pairs
+correlation_pairs = upper_triangle.stack()
+
+# Sort by absolute correlation strength
+correlation_pairs = correlation_pairs.sort_values(
+    key=lambda x: x.abs(),
+    ascending=False
+)
+
+# Select the two strongest correlations
+strongest_pairs = correlation_pairs.head(2)
+
+print("\nTwo Strongest Correlations:")
+print(strongest_pairs)
 
 # Standardization sanity check
 
@@ -248,3 +319,4 @@ print("\nAFTER STANDARDIZATION")
 print(
     df_standardized[["age_z", "fare_z"]].agg(["mean", "std"]).round(4)
 )
+print(df_standardized.shape)
