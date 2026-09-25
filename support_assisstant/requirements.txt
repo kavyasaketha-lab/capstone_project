@@ -1,0 +1,9 @@
+pandas
+numpy
+chromadb
+sentence-transformers
+langgraph
+langchain-core
+fastapi
+uvicorn
+pydantic
